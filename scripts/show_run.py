@@ -8,9 +8,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
-from app.config import get_settings
-from app.store import Store
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # run as a file from the repo root
+
+from app.config import get_settings  # noqa: E402
+from app.store import Store  # noqa: E402
 
 
 def show(store: Store, run_id: str, rulesets: bool) -> None:
