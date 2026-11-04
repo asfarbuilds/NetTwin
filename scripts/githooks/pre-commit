@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# NetTwin pre-commit: refuse to commit secrets.
+# Enable once per clone:  git config core.hooksPath scripts/githooks
+set -euo pipefail
+
+fail=0
+
+# 1. A .env file must never be staged.
+if git diff --cached --name-only | grep -E '(^|/)\.env$' >/dev/null; then
+    echo "pre-commit: refusing to commit a .env file" >&2
+    fail=1
+fi
+
+# 2. An added line that assigns a real-looking value to the API key.
+if git diff --cached -U0 --no-color \
+    | grep -E '^\+.*VULTR_INFERENCE_API_KEY[[:space:]]*=[[:space:]]*["'\'']?[A-Za-z0-9_-]{8,}' >/dev/null; then
+    echo "pre-commit: staged change contains VULTR_INFERENCE_API_KEY with a value" >&2
+    fail=1
+fi
+
+exit "$fail"

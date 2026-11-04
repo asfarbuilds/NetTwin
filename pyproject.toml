@@ -1,0 +1,37 @@
+[project]
+name = "nettwin"
+version = "0.1.0"
+description = "Every firewall change is proven on a disposable twin before it touches production."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "openai>=1.40",
+    "docker>=7.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+# S = flake8-bandit: flags shell=True, subprocess misuse, etc.
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["vm: needs real Docker/nftables on the Vultr VM (run with: pytest -m vm)"]
+addopts = "-m 'not vm'"

@@ -1,0 +1,12 @@
+#!/usr/sbin/nft -f
+# NetTwin host isolation: twins (bridges named nt*) must never reach the host itself.
+# Idempotent reload: create-then-delete our own table only. NEVER `flush ruleset`, which would wipe Docker's rules.
+table inet nettwin_host
+delete table inet nettwin_host
+
+table inet nettwin_host {
+    chain input {
+        type filter hook input priority -10; policy accept;
+        iifname "nt*" counter drop
+    }
+}

@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime data
+*.db
+*.db-journal
+spike-output.log
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
