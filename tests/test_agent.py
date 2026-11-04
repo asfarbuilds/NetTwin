@@ -126,6 +126,18 @@ def test_summary_falls_back_if_llm_fails(tmp_path):
     assert res.passed and res.summary.startswith("PASSED") and "#1 ✓" in res.summary
 
 
+def test_plan_failure_marks_run_error(tmp_path):
+    import pytest
+
+    from app.llm import LLMError
+
+    deps, _ = make_deps(tmp_path, ["no json", "still no json"], verdicts=[])
+    with pytest.raises(LLMError):
+        agent.start_run(deps, "x")
+    (row,) = deps.store._db.execute("SELECT status, error FROM runs").fetchall()
+    assert row["status"] == "error" and "repair" in row["error"]
+
+
 def test_default_baseline_passes_static_validation():
     validate_ruleset(agent.DEFAULT_BASELINE)
 

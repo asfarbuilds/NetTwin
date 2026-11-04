@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
 
+import httpx2  # the HTTP client the openai SDK uses; errors raised mid-stream come from it
 import openai
 from pydantic import BaseModel, ValidationError
 
@@ -24,7 +25,8 @@ log = logging.getLogger(__name__)
 
 PROMPTS = Path(__file__).parent / "prompts"
 TEMPERATURE = 0.2
-TIMEOUT_S = 60
+TIMEOUT_S = 60  # with streaming: max silence between chunks (and connect/write)
+MAX_CALL_S = 180  # hard cap on one whole call
 BACKOFF_S = (2, 5, 10)  # waits between retries of 429 / 5xx / connection errors
 USER_MARKER = "---USER---"
 
@@ -124,33 +126,63 @@ class LLM:
         log.info("LLM: %s on Vultr Serverless Inference (key accepted)", self.model)
 
     def chat(self, messages: list[dict], label: str = "") -> str:
+        """Streamed completion. Reasoning models can think for minutes before answering; streaming turns the
+        60 s timeout into 'no progress for 60 s', and MAX_CALL_S caps the whole call.
+        Retries: 429 / 5xx / connection errors up to 3 times; a stall only once (it would just stall again)."""
+        stalls = 0
         for attempt in range(len(BACKOFF_S) + 1):
-            t0 = time.monotonic()
             try:
-                resp = self.client.chat.completions.create(
-                    model=self.model, messages=messages, temperature=TEMPERATURE
-                )
-                break
-            except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError) as e:
+                return self._stream_once(messages, label)
+            except (openai.APITimeoutError, httpx2.TimeoutException) as e:  # before APIConnectionError: subclass
+                stalls += 1
+                if stalls > 1 or attempt == len(BACKOFF_S):
+                    raise LLMError(f"{self.model} sent nothing for {TIMEOUT_S}s, twice; try a faster model") from e
+                err = e
+            except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError,
+                    httpx2.TransportError) as e:
                 if attempt == len(BACKOFF_S):
                     raise LLMError(f"Vultr Inference unavailable after retries: {type(e).__name__}") from e
-                wait = BACKOFF_S[attempt]
-                log.warning("LLM %s: %s, retrying in %ss", label, type(e).__name__, wait)
-                time.sleep(wait)
+                err = e
             except openai.APIStatusError as e:  # 4xx other than 429: not retryable
                 raise LLMError(f"Vultr Inference error {e.status_code}: {str(e)[:200]}") from e
+            wait = BACKOFF_S[attempt]
+            log.warning("LLM %s: %s, retrying in %ss", label, type(err).__name__, wait)
+            time.sleep(wait)
+        raise AssertionError("unreachable")
+
+    def _stream_once(self, messages: list[dict], label: str) -> str:
+        t0 = time.monotonic()
+        stream = self.client.chat.completions.create(
+            model=self.model, messages=messages, temperature=TEMPERATURE, stream=True
+        )
+        parts: list[str] = []
+        usage, reasoning_chars = None, 0
+        try:
+            for chunk in stream:
+                if time.monotonic() - t0 > MAX_CALL_S:
+                    raise LLMError(f"{self.model} call exceeded {MAX_CALL_S}s")
+                usage = getattr(chunk, "usage", None) or usage
+                for choice in getattr(chunk, "choices", None) or []:
+                    delta = getattr(choice, "delta", None)
+                    if delta is None:
+                        continue
+                    if delta.content:
+                        parts.append(delta.content)
+                    # some servers stream the model's thinking in a separate field; it only counts as progress
+                    reasoning_chars += len(getattr(delta, "reasoning_content", None) or "")
+        finally:
+            if close := getattr(stream, "close", None):
+                close()
 
         dt = time.monotonic() - t0
-        content = resp.choices[0].message.content or ""
-        u = getattr(resp, "usage", None)
-        pt, ct = (getattr(u, "prompt_tokens", 0) or 0), (getattr(u, "completion_tokens", 0) or 0)
+        pt, ct = (getattr(usage, "prompt_tokens", 0) or 0), (getattr(usage, "completion_tokens", 0) or 0)
         self.usage.calls += 1
         self.usage.prompt_tokens += pt
         self.usage.completion_tokens += ct
         self.usage.seconds += dt
         self.usage.per_call.append({"label": label, "prompt_tokens": pt, "completion_tokens": ct, "s": round(dt, 1)})
-        log.info("LLM %s: %.1fs, %d in / %d out tokens", label, dt, pt, ct)
-        return content
+        log.info("LLM %s: %.1fs, %d in / %d out tokens, %d reasoning chars", label, dt, pt, ct, reasoning_chars)
+        return "".join(parts)
 
     def json_call(self, prompt: str, schema: type[M], label: str = "", **values: str) -> tuple[M, str]:
         """Ask for JSON and parse it into a closed schema. One repair retry, then LLMError."""

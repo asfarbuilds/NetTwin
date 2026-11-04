@@ -278,6 +278,10 @@ The pipeline runs these steps in order:
   - Instruct "return only JSON", strip code fences, then parse with Pydantic.
   - On a parse failure, do one repair retry, then fail the attempt cleanly.
 - Use temperature 0.2, a 60 s timeout per call, and backoff on 429/5xx.
+  - **Changed 4 Nov after the first live run:** `glm-5.3` (a reasoning model) thinks for over 60 s before its
+    first content token, so non-streamed calls always timed out. Calls are now **streamed**: 60 s is the max
+    silence between chunks, plus a **180 s hard cap** per call. A stall is retried once only; 429/5xx/connection
+    errors up to 3 times (2/5/10 s).
 - Prompts live in `app/prompts/*.md`, not inline strings.
 
 ---

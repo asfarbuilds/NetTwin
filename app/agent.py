@@ -224,7 +224,12 @@ def start_run(deps: Deps, request: str, baseline: str | None = None, scenario: s
     baseline = baseline or DEFAULT_BASELINE
     deps.store.create_run(run_id, request, baseline, scenario=scenario, client_ip=client_ip, model=deps.llm.model)
     emit("planning", {"run_id": run_id})
-    plan = make_plan(deps.llm, request, baseline)
+    try:
+        plan = make_plan(deps.llm, request, baseline)
+    except LLMError as e:
+        deps.store.update_run(run_id, status="error", error=str(e))
+        emit("error", {"run_id": run_id, "stage": "plan", "message": str(e)})
+        raise
     deps.store.update_run(run_id, status="plan_ready", plan_json=plan.model_dump_json())
     emit("plan_ready", {"run_id": run_id, "probes": len(plan.probes)})
     return run_id, plan
@@ -270,6 +275,16 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("models", help="list models served to this API key")
     args = ap.parse_args(argv)
 
+    if args.cmd == "run" and not (args.scenario or args.request):
+        ap.error("give a scenario id or --request")
+    try:
+        return _cli(args)
+    except LLMError as e:
+        print(f"\nERROR (LLM): {e}", file=sys.stderr)
+        return 2
+
+
+def _cli(args: argparse.Namespace) -> int:
     settings = get_settings()
     if getattr(args, "model", None):
         settings = settings.model_copy(update={"vultr_model": args.model})
@@ -278,8 +293,6 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(llm.list_models()))
         return 0
 
-    if not (args.scenario or args.request):
-        ap.error("give a scenario id or --request")
     request = args.request or BY_ID[args.scenario.upper()].request
     run_startup_checks(settings)
     llm.verify_model()

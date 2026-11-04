@@ -107,6 +107,48 @@ def test_ruleset_proposal_parses_escaped_newlines():
     assert prop.ruleset == "table inet filter {\n}\n"
 
 
+def test_streamed_usage_and_reasoning_are_recorded():
+    llm = LLM(SETTINGS, client=FakeOpenAI(['{"probes": []}']))
+    llm.json_call("plan", TestPlan, request="r", topology="t", baseline="b")
+    assert llm.usage.calls == 1 and llm.usage.prompt_tokens == 100 and llm.usage.completion_tokens == 50
+
+
+def test_stall_is_retried_once_then_fails_with_hint(monkeypatch):
+    import httpx2
+    import openai
+
+    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
+    stall = openai.APITimeoutError(request=httpx2.Request("POST", "https://x/v1/chat/completions"))
+    fake = FakeOpenAI([stall, stall, j({"probes": []})])
+    with pytest.raises(LLMError, match="try a faster model"):
+        LLM(SETTINGS, client=fake).json_call("plan", TestPlan, request="r", topology="t", baseline="b")
+    assert len(fake.sent) == 2  # one retry only, not three
+
+
+def test_stall_mid_stream_from_httpx_is_handled(monkeypatch):
+    import httpx2
+
+    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
+    fake = FakeOpenAI([j({"probes": []})])
+
+    def stalling(*a, **kw):
+        fake.sent.append(kw.get("messages"))
+        yield from ()
+        raise httpx2.ReadTimeout("The read operation timed out")
+
+    calls = iter([stalling(), None])
+    orig = fake._create
+    fake.chat.completions.create = lambda **kw: next(calls) or orig(**kw)
+    LLM(SETTINGS, client=fake).json_call("plan", TestPlan, request="r", topology="t", baseline="b")
+
+
+def test_hard_cap_per_call(monkeypatch):
+    clock = iter([0.0, 0.0, 500.0, 500.0, 500.0, 500.0])
+    monkeypatch.setattr("app.llm.time.monotonic", lambda: next(clock))
+    with pytest.raises(LLMError, match="exceeded"):
+        LLM(SETTINGS, client=FakeOpenAI(['{"probes": []}'])).chat([{"role": "user", "content": "x"}], label="t")
+
+
 def test_backoff_on_rate_limit(monkeypatch):
     import httpx2
     import openai
