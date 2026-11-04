@@ -63,6 +63,22 @@ def test_verify_model():
         LLM(SETTINGS, client=FakeOpenAI([], models=("other",))).verify_model()
 
 
+def test_verify_model_checks_the_key_because_models_endpoint_is_public():
+    import httpx2
+    import openai
+
+    resp = httpx2.Response(401, request=httpx2.Request("POST", "https://x/v1/chat/completions"))
+    bad_key = openai.AuthenticationError("Invalid API key", response=resp, body=None)
+    with pytest.raises(LLMError, match="not the account API key"):
+        LLM(SETTINGS, client=FakeOpenAI([], reject_key=bad_key)).verify_model()
+
+
+@pytest.mark.parametrize("raw", ["abc123", " abc123 ", "abc123\r", '"abc123"', "'abc123'", ' "abc123"\r'])
+def test_api_key_copy_paste_debris_is_stripped(raw):
+    s = Settings(vultr_model="m", vultr_inference_api_key=raw, _env_file=None)
+    assert s.vultr_inference_api_key.get_secret_value() == "abc123"
+
+
 def test_missing_model_fails_loudly():
     with pytest.raises(LLMError):
         LLM(Settings(vultr_model="", _env_file=None), client=FakeOpenAI([]))

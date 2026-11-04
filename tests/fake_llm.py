@@ -7,13 +7,18 @@ from types import SimpleNamespace
 
 
 class FakeOpenAI:
-    def __init__(self, replies: list[str], models: tuple[str, ...] = ("glm-5.3",)):
+    def __init__(self, replies: list[str], models: tuple[str, ...] = ("glm-5.3",), reject_key: Exception | None = None):
         self.replies = list(replies)
+        self.reject_key = reject_key
         self.sent: list[list[dict]] = []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
         self.models = SimpleNamespace(list=lambda: [SimpleNamespace(id=m) for m in models])
 
-    def _create(self, model, messages, temperature):
+    def _create(self, model, messages, temperature=None, max_tokens=None):
+        if max_tokens == 1:  # verify_model's auth ping: not part of the scripted conversation
+            if self.reject_key:
+                raise self.reject_key
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="p"))], usage=None)
         self.sent.append(messages)
         if not self.replies:
             raise AssertionError("FakeOpenAI ran out of scripted replies")

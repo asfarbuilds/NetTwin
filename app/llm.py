@@ -106,14 +106,22 @@ class LLM:
         return sorted(m.id for m in self.client.models.list())
 
     def verify_model(self) -> None:
-        """Fail loudly if VULTR_MODEL isn't served. Never guess or invent model IDs."""
-        try:
-            ids = self.list_models()
-        except openai.AuthenticationError as e:
-            raise LLMError("Vultr Inference rejected the API key (401)") from e
+        """Fail loudly if VULTR_MODEL isn't served or the key is rejected. Never guess or invent model IDs.
+
+        /v1/models answers without authentication, so the key is checked separately with a 1-token completion."""
+        ids = self.list_models()
         if self.model not in ids:
             raise LLMError(f"VULTR_MODEL={self.model!r} is not in /v1/models. Available: {', '.join(ids)}")
-        log.info("LLM: %s on Vultr Serverless Inference", self.model)
+        try:
+            self.client.chat.completions.create(
+                model=self.model, messages=[{"role": "user", "content": "ping"}], max_tokens=1
+            )
+        except openai.AuthenticationError as e:
+            raise LLMError(
+                "Vultr Inference rejected VULTR_INFERENCE_API_KEY (401). Use the key of the Serverless Inference "
+                "subscription (Products → Serverless → Inference), not the account API key."
+            ) from e
+        log.info("LLM: %s on Vultr Serverless Inference (key accepted)", self.model)
 
     def chat(self, messages: list[dict], label: str = "") -> str:
         for attempt in range(len(BACKOFF_S) + 1):

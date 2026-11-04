@@ -9,7 +9,7 @@ from functools import lru_cache
 from ipaddress import IPv4Network
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     nettwin_max_iterations: int = 4
     nettwin_run_timeout_s: int = 90
     nettwin_rate_limit_per_hour: int = 6
+
+    @field_validator("vultr_inference_api_key", mode="before")
+    @classmethod
+    def _clean_key(cls, v):
+        """Tolerate copy-paste debris in the env file: whitespace, CR from Windows editors, stray quotes."""
+        if isinstance(v, str):
+            return v.strip().strip("'\"").strip()
+        return v
 
 
 @lru_cache
