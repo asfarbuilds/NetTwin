@@ -1,0 +1,22 @@
+{
+  "probes": [
+    {"id": "wan-nvr-ui", "source": "attacker", "kind": "http", "target": "router_wan", "port": 8443, "expect": "allow",
+     "description": "Internet reaches the NVR UI through WAN port 8443"},
+    {"id": "wan-ssh-closed", "source": "attacker", "kind": "tcp", "target": "router_wan", "port": 22, "expect": "deny",
+     "description": "Router SSH is closed on WAN"},
+    {"id": "wan-ssh-banner", "source": "attacker", "kind": "ssh_banner", "target": "router_wan", "expect": "deny",
+     "description": "No SSH banner on WAN"},
+    {"id": "wan-http-closed", "source": "attacker", "kind": "tcp", "target": "router_wan", "port": 80, "expect": "deny",
+     "description": "Nothing else on WAN: port 80 closed"},
+    {"id": "wan-nvr-direct", "source": "attacker", "kind": "tcp", "target": "nvr", "port": 8443, "expect": "deny",
+     "description": "NVR is not reachable directly, only via the DNAT"},
+    {"id": "wan-ping", "source": "attacker", "kind": "icmp", "target": "router_wan", "expect": "deny",
+     "description": "Router does not answer ping on WAN"},
+    {"id": "lan-nvr-ui", "source": "staff", "kind": "http", "target": "nvr", "port": 8443, "expect": "allow",
+     "description": "LAN still reaches the NVR UI"},
+    {"id": "lan-to-wan", "source": "staff", "kind": "icmp", "target": "router_wan", "expect": "allow",
+     "description": "LAN can still use the router"},
+    {"id": "lan-dns", "source": "staff", "kind": "dns", "target": "router_lan", "query": "intranet.local",
+     "expect": "resolves", "description": "Local DNS still works for LAN"}
+  ]
+}

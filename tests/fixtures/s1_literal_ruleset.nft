@@ -1,0 +1,12 @@
+# S1, read literally: "Drop ALL inbound traffic to the router on every interface. No exceptions."
+# This locks the admin out, so INV-1 must fire. Used to prove the containment moment.
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+    }
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ct state established,related accept
+        iifname $IF_LAN oifname $IF_WAN accept
+    }
+}

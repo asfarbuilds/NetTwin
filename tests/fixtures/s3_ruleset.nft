@@ -1,0 +1,27 @@
+# S3: expose the NVR web UI (nvr:8443) on WAN port 8443. Nothing else reachable from WAN.
+# Hand-written reference for Phase 1. Uses only the NetTwin topology variables, never literal IPs.
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        ct state established,related accept
+        ct state invalid drop
+        iif lo accept
+        iifname $IF_MGMT accept
+        iifname $IF_LAN accept
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ct state established,related accept
+        ct state invalid drop
+        iifname $IF_LAN oifname $IF_WAN accept
+        iifname $IF_WAN ip daddr $NVR tcp dport 8443 ct status dnat accept
+    }
+}
+
+table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        iifname $IF_WAN ip daddr $ROUTER_WAN tcp dport 8443 dnat to $NVR:8443
+    }
+}

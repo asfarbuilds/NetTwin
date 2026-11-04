@@ -230,6 +230,13 @@ The pipeline runs these steps in order:
      so a correct SSH rate limit (S2) can't make INV-1 fail. Extra ones are rejected at plan validation.
 3. **GENERATE.** Send the LLM the user request, baseline ruleset, topology, and approved plan.
    It returns `{ "ruleset": "...", "rationale": "..." }`.
+   - **Topology variables (decided in Phase 1).** Every attempt gets fresh subnets, and the router's interface
+     names aren't guaranteed, so rulesets must **never contain literal twin IPs or interface names**.
+     The executor prepends `flush ruleset` plus nft `define`s:
+     `IF_MGMT/IF_LAN/IF_WAN`, `NET_MGMT/NET_LAN/NET_WAN`, `ROUTER_MGMT/ROUTER_LAN/ROUTER_WAN`,
+     `ADMIN/STAFF/HR/NVR/ATTACKER`. The generator and the baseline use `$IF_LAN`, `$NVR` and so on.
+     The model never sees or chooses real IPs. For export, the same header is emitted with production values
+     as placeholders for the user to fill in.
    - **The generator is NOT told the invariants up front.** They are an independent gate, the same way change-control
      doesn't let the author grade their own change. It only learns of an invariant when a violation is fed back
      on retry (step 7). This is a deliberate design choice and must be explained in the README in exactly these terms.
@@ -303,7 +310,8 @@ class Probe(BaseModel):
 ```
 
 Containment checks need targets outside this enum (`1.1.1.1`, the bridge gateway `.1`).
-They use a separate internal `SystemProbe` type that the model can never produce. It is built only in `invariants.py`.
+Executable probes are an internal `ResolvedProbe` (concrete IPs) that the model can never produce: built from a
+validated `Probe` by `topology.resolve`, or directly in `invariants.py` for CC checks.
 
 **Fixed argv templates (executor):**
 
