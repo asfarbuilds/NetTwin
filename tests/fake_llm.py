@@ -29,17 +29,23 @@ class FakeOpenAI:
         return _chunks(reply)
 
 
-def _delta(content=None, reasoning=None):
-    return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=content,
-                                                                          reasoning_content=reasoning))], usage=None)
+CUT_OFF = "<<cut off at max tokens>>"  # scripted reply that simulates finish_reason=length with no answer
+
+
+def _delta(content=None, reasoning=None, finish=None):
+    return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=content, reasoning_content=reasoning),
+                                                    finish_reason=finish)], usage=None)
 
 
 def _chunks(reply: str):
     """Stream like a reasoning model: thinking first, then the answer in two pieces, then a usage-only chunk."""
-    half = len(reply) // 2
     yield _delta(reasoning="let me think about the topology...")
-    yield _delta(content=reply[:half])
-    yield _delta(content=reply[half:])
+    if reply == CUT_OFF:
+        yield _delta(reasoning="still thinking...", finish="length")
+    else:
+        half = len(reply) // 2
+        yield _delta(content=reply[:half])
+        yield _delta(content=reply[half:], finish="stop")
     yield SimpleNamespace(choices=[], usage=SimpleNamespace(prompt_tokens=100, completion_tokens=50))
 
 

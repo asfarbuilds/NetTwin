@@ -107,6 +107,15 @@ def test_ruleset_proposal_parses_escaped_newlines():
     assert prop.ruleset == "table inet filter {\n}\n"
 
 
+def test_cut_off_reply_is_not_repaired():
+    from tests.fake_llm import CUT_OFF
+
+    fake = FakeOpenAI([CUT_OFF, j({"probes": []})])
+    with pytest.raises(LLMError, match="output-token limit"):
+        LLM(SETTINGS, client=fake).json_call("plan", TestPlan, request="r", topology="t", baseline="b")
+    assert len(fake.sent) == 1  # no wasted repair call
+
+
 def test_streamed_usage_and_reasoning_are_recorded():
     llm = LLM(SETTINGS, client=FakeOpenAI(['{"probes": []}']))
     llm.json_call("plan", TestPlan, request="r", topology="t", baseline="b")

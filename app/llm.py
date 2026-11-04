@@ -103,6 +103,7 @@ class LLM:
             max_retries=0,  # we do our own backoff, so it's visible in logs
         )
         self.usage = Usage()
+        self.last_finish: str | None = None  # finish_reason of the last chat(): "stop", "length", ...
 
     def list_models(self) -> list[str]:
         return sorted(m.id for m in self.client.models.list())
@@ -156,13 +157,14 @@ class LLM:
             model=self.model, messages=messages, temperature=TEMPERATURE, stream=True
         )
         parts: list[str] = []
-        usage, reasoning_chars = None, 0
+        usage, reasoning_chars, finish = None, 0, None
         try:
             for chunk in stream:
                 if time.monotonic() - t0 > MAX_CALL_S:
                     raise LLMError(f"{self.model} call exceeded {MAX_CALL_S}s")
                 usage = getattr(chunk, "usage", None) or usage
                 for choice in getattr(chunk, "choices", None) or []:
+                    finish = getattr(choice, "finish_reason", None) or finish
                     delta = getattr(choice, "delta", None)
                     if delta is None:
                         continue
@@ -181,7 +183,9 @@ class LLM:
         self.usage.completion_tokens += ct
         self.usage.seconds += dt
         self.usage.per_call.append({"label": label, "prompt_tokens": pt, "completion_tokens": ct, "s": round(dt, 1)})
-        log.info("LLM %s: %.1fs, %d in / %d out tokens, %d reasoning chars", label, dt, pt, ct, reasoning_chars)
+        log.info("LLM %s: %.1fs, %d in / %d out tokens, %d reasoning chars, finish=%s",
+                 label, dt, pt, ct, reasoning_chars, finish)
+        self.last_finish = finish
         return "".join(parts)
 
     def json_call(self, prompt: str, schema: type[M], label: str = "", **values: str) -> tuple[M, str]:
@@ -192,6 +196,11 @@ class LLM:
         try:
             return schema.model_validate(extract_json(raw)), raw
         except (ValueError, ValidationError) as first_error:
+            if self.last_finish == "length":
+                # The model spent its whole output budget (usually on hidden reasoning) before answering.
+                # A repair in the same conversation hits the same wall; fail this call and let the caller retry.
+                raise LLMError(f"{label}: reply cut off at the output-token limit (model reasoned too long); "
+                               "not repairing") from first_error
             log.warning("LLM %s: unparseable reply, sending one repair request: %s", label, str(first_error)[:200])
             r_system, r_user = load_prompt("repair")
             messages += [
