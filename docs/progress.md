@@ -34,7 +34,7 @@ uv run pytest -m vm -v
 docker ps -a --filter label=nettwin=1; docker network ls --filter label=nettwin=1   # both empty
 ```
 
-## Phase 2: Agent loop, CODE DONE locally (4 Nov); live VM acceptance pending
+## Phase 2: Agent loop, DONE (4 Nov 2026, accepted on the VM)
 - `app/llm.py`: OpenAI SDK → Vultr Inference; `verify_model()` against `/v1/models`; temp 0.2, 60 s timeout,
   backoff 2/5/10 s on 429/5xx/connection errors; strips `<think>` + code fences; one repair retry; token accounting.
 - `app/prompts/`: plan, generate, repair, summarize (`{{placeholder}}` templates; system/user split by `---USER---`).
@@ -75,7 +75,22 @@ Root causes, all fixed in code, not model problems:
    earlier failure. Now the last twin evidence is carried forward.
 4. qwen wrote `burst 3 accept` (nft needs `burst 3 packets`); hint added to the generate prompt.
 
-glm-5.3 is too slow for a live demo. **Next:** re-run the comparison on the fixed code, then pick the model.
+glm-5.3 is too slow for a live demo.
+
+**Model comparison #2 (4 Nov, after the fixes): 9/9 PASS.** S1 shows `#1 ✗ INV-1 lockout → #2 ✓` on every model.
+
+| Model | S1 | S2 | S3 | LLM s (S1+S2+S3) | Wall clock |
+|---|---|---|---|---|---|
+| **deepseek-v4.1-flash-1017** | ✓ (2) | ✓ (1) | ✓ (1) | **52 + 50 + 26 = 128** | **2 m 53 s** |
+| glm-5.3-flash | ✓ (2) | ✓ (1) | ✓ (1) | 79 + 45 + 49 = 173 | 3 m 34 s |
+| qwen3.8-27b | ✓ (2) | ✓ (1) | ✓ (1) | 78 + 81 + 76 = 235 | 4 m 37 s |
+
+**Chosen: `deepseek-v4.1-flash-1017`** (fastest and fewest tokens on every scenario). All replies finished with
+`finish=stop`; the hidden reasoning is streamed in the `reasoning` field (30–90k chars per call).
+Follow-up: S2 showed "Your request conflicted with INV-1" because the planner wrote a "4th admin SSH is
+rate-limited (deny)" probe. The planner is now told not to probe rate limits (parallel probes make counts unreliable).
+
+**Phase 2 acceptance: met** (S1–S3 end-to-end via the CLI, INV-1 fires and recovers on S1, all attempts in SQLite).
 `scripts/show_run.py <run_id>` prints failing probes, raw output and rulesets from SQLite.
 
 ## Phase 3: Web app, CODE DONE locally (4 Nov); VM browser acceptance pending

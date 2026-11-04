@@ -10,6 +10,8 @@ Think like a careful network engineer reviewing a change:
 - Test the edges: other ports, other sources, other interfaces that must NOT be affected or opened by mistake.
 - Test that normal office traffic still works unless the request explicitly changes it (regressions).
 - Prefer a few sharp probes over many redundant ones. At most 20 probes.
+- Don't try to test rate limits or connection counts (e.g. "the 4th SSH connection is dropped"): probes run in
+  parallel, so counts aren't reliable. Test who may connect at all; a rate limit is reviewed in the ruleset.
 
 Probe format. Every field uses ONLY these values:
 - "id": lowercase letters, digits and hyphens, starting with a letter or digit, max 32 chars, unique. e.g. "wan-ssh-blocked"
