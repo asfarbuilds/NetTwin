@@ -60,6 +60,22 @@ docker ps -a --filter label=nettwin=1; docker network ls --filter label=nettwin=
 **Still to run:** S2, S3, and the model comparison.
 Model choice: compare `glm-5.3`, `deepseek-v4.1-flash-1017`, `qwen3.8-27b` with `--model` on S1–S3.
 
+## Phase 3: Web app, CODE DONE locally (4 Nov); VM browser acceptance pending
+- `app/main.py`: FastAPI routes per CLAUDE.md §10. Workers run in threads. A semaphore caps concurrent runs (2),
+  there's a per-IP rate limit (6/h), and Execute is an atomic compare-and-set (no double runs). The SSE event bus
+  supports Last-Event-ID resume and 15 s keepalive pings.
+  The LLM wrapper is per run (separate token accounting). Startup fails loudly if the key, model, Docker or images are bad.
+- `app/report.py`: `export.nft` (production header with CHANGE_ME values, so nft refuses it until filled in) and
+  `report.md` (evidence tables, caught-on-twin section, diff, ruleset).
+- `app/static/`: single-page UI, vanilla JS. All server/model text goes in via textContent (a test asserts no innerHTML).
+  Editable plan with 🔒 invariant rows, struck-out conflicting probes, live log, attempt timeline, evidence with raw
+  output, containment panel, diff, Approve → downloads, footer with the model.
+- `scripts/dev_ui.py`: local preview with a scripted LLM and fake twins (no Docker or key needed).
+- 148 tests green (12 API tests incl. the full S1 flow, SSE replay/resume, rate limit, validation).
+
+**VM acceptance (to run):** `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`, then an SSH tunnel
+(`ssh -L 8000:127.0.0.1:8000 ali@<vm>`), then run S1–S3 in the browser, edit a plan, approve, download.
+
 ## Known issues
 - The host nft rule is loaded by hand on the VM and **won't survive a reboot** until the Phase 5 systemd unit exists.
   After a reboot: `sudo nft -f deploy/nettwin-host.nft` (otherwise CC-2 fails, correctly).

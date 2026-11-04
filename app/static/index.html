@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetTwin</title>
+  <meta name="description" content="Every firewall change is proven on a disposable twin before it touches production.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">◧◨</span>
+    <div>
+      <h1>NetTwin</h1>
+      <p class="tag">Every firewall change is proven on a disposable twin before it touches production.</p>
+    </div>
+  </div>
+  <div id="run-badge" class="badge hidden"></div>
+</header>
+
+<main>
+  <!-- 1. Request -->
+  <section class="panel" id="request-panel">
+    <h2><span class="step">1</span> Change request</h2>
+    <div id="scenarios" class="scenarios"></div>
+    <textarea id="request" rows="2" maxlength="600"
+              placeholder="e.g. Expose the NVR web UI on WAN port 8443, nothing else."></textarea>
+    <details id="baseline-box">
+      <summary>Baseline ruleset (current production) <span class="muted">· optional, uses topology variables</span></summary>
+      <textarea id="baseline" rows="14" spellcheck="false" class="mono"></textarea>
+    </details>
+    <div class="row">
+      <button id="plan-btn" class="primary">Plan tests</button>
+      <span id="request-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <!-- 2. Test plan -->
+  <section class="panel hidden" id="plan-panel">
+    <h2><span class="step">2</span> Test plan <span id="plan-hint" class="muted"></span></h2>
+    <div id="conflict-note" class="note warn hidden"></div>
+    <div class="table-wrap"><table id="plan-table" class="grid"></table></div>
+    <div class="row">
+      <button id="add-probe" class="ghost">+ Add probe</button>
+      <button id="run-btn" class="primary">Run on twin</button>
+      <span id="plan-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <!-- 3. Live -->
+  <section class="panel hidden" id="live-panel">
+    <h2><span class="step">3</span> Twin runs</h2>
+    <div id="timeline" class="timeline"></div>
+    <div class="split">
+      <div>
+        <h3>Live log</h3>
+        <pre id="log" class="log mono" aria-live="polite"></pre>
+      </div>
+      <div>
+        <h3>Containment checks <span class="muted">· prove the sandbox, every attempt</span></h3>
+        <div id="containment" class="cc"></div>
+      </div>
+    </div>
+    <h3 id="evidence-title">Evidence</h3>
+    <div class="table-wrap"><table id="evidence" class="grid"></table></div>
+  </section>
+
+  <!-- 4. Result -->
+  <section class="panel hidden" id="result-panel">
+    <h2><span class="step">4</span> Result</h2>
+    <div id="verdict" class="verdict"></div>
+    <div id="conflict-banner" class="note ok hidden"></div>
+    <p id="summary" class="summary"></p>
+    <h3>Diff <span class="muted">· baseline → proposed</span></h3>
+    <pre id="diff" class="diff mono"></pre>
+    <details>
+      <summary>Full proposed ruleset and rationale</summary>
+      <p id="rationale" class="muted"></p>
+      <pre id="final-ruleset" class="code mono"></pre>
+    </details>
+    <div class="row approve-row">
+      <button id="approve-btn" class="primary" disabled>Approve</button>
+      <a id="dl-nft" class="btn ghost disabled" aria-disabled="true">Download .nft</a>
+      <a id="dl-report" class="btn ghost disabled" aria-disabled="true">Download report.md</a>
+      <span id="approve-msg" class="msg"></span>
+    </div>
+  </section>
+</main>
+
+<footer id="footer" class="footer">LLM: … on Vultr Serverless Inference · Twin host: Vultr Cloud Compute</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

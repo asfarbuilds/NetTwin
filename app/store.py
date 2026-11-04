@@ -113,6 +113,17 @@ class Store:
                 )
             self._db.execute("COMMIT")
 
+    def transition(self, run_id: str, frm: str, to: str) -> bool:
+        """Atomic compare-and-set on status, so a double-clicked Execute can't start two runs."""
+        with self._lock:
+            cur = self._db.execute("UPDATE runs SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+                                   (to, time.time(), run_id, frm))
+            return cur.rowcount == 1
+
+    def get_status(self, run_id: str) -> str | None:
+        row = self._db.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()
+        return row[0] if row else None
+
     def get_run(self, run_id: str) -> dict | None:
         row = self._db.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
         if not row:

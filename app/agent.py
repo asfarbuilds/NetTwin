@@ -222,13 +222,21 @@ def summarize(llm: LLM, result: RunResult) -> str:
         return f"{verdict}. Attempts: {timeline}. {result.conflict_message}".strip()
 
 
+def new_run_id() -> str:
+    return secrets.token_hex(6)
+
+
 def start_run(deps: Deps, request: str, baseline: str | None = None, scenario: str | None = None,
-              emit: Emit = _no_emit, client_ip: str | None = None) -> tuple[str, TestPlan]:
-    """PLAN step: create the run and ask for a test plan. The UI then shows it for review."""
-    run_id = secrets.token_hex(6)
+              emit: Emit = _no_emit, client_ip: str | None = None, run_id: str | None = None,
+              created: bool = False) -> tuple[str, TestPlan]:
+    """PLAN step: create the run (unless the API already did) and ask for a test plan. The UI then shows it
+    for review."""
+    run_id = run_id or new_run_id()
     baseline = baseline or DEFAULT_BASELINE
-    deps.store.create_run(run_id, request, baseline, scenario=scenario, client_ip=client_ip, model=deps.llm.model)
-    emit("planning", {"run_id": run_id})
+    if not created:
+        deps.store.create_run(run_id, request, baseline, scenario=scenario, client_ip=client_ip,
+                              model=deps.llm.model)
+    emit("planning", {"run_id": run_id, "model": deps.llm.model})
     try:
         plan = make_plan(deps.llm, request, baseline)
     except LLMError as e:
