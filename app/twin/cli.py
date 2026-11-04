@@ -59,7 +59,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     for img in (ROUTER_IMAGE, NODE_IMAGE):
         client.images.get(img)  # raises ImageNotFound with a clear message
 
-    plan = TestPlan.model_validate_json(Path(args.plan).read_text())
+    plan = TestPlan.model_validate_json(Path(args.plan).read_text(encoding="utf-8"))
     check = invariants.check_plan(plan)
     removed = [(p.id, reason) for p, reason in check.removed]
     if check.conflicts:
@@ -71,14 +71,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         SubnetPool(settings.nettwin_subnet_pool),
         Path(args.data_dir or settings.nettwin_data_dir),
         secrets.token_hex(4),
-        Path(args.ruleset).read_text(),
+        Path(args.ruleset).read_text(encoding="utf-8"),
         plan,
         emit=(lambda ev, data: print(f"[{ev}] {json.dumps(data)[:160]}")) if args.verbose else executor._no_emit,
         timeout_s=settings.nettwin_run_timeout_s,
     )
     print_report(res, removed)
     if args.json:
-        Path(args.json).write_text(res.model_dump_json(indent=2))
+        Path(args.json).write_text(res.model_dump_json(indent=2), encoding="utf-8")
     return 0 if res.passed else 1
 
 

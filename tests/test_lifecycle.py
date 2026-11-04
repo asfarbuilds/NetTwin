@@ -12,8 +12,8 @@ from app.twin.topology import SubnetPool, twin_up
 from tests.fake_docker import FakeClient, default_exec
 
 FIXTURES = Path(__file__).parent / "fixtures"
-S3_RULESET = (FIXTURES / "s3_ruleset.nft").read_text()
-S3_PLAN = TestPlan.model_validate_json((FIXTURES / "s3_plan.json").read_text())
+S3_RULESET = (FIXTURES / "s3_ruleset.nft").read_text(encoding="utf-8")
+S3_PLAN = TestPlan.model_validate_json((FIXTURES / "s3_plan.json").read_text(encoding="utf-8"))
 
 
 def pool():

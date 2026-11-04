@@ -85,7 +85,7 @@ def test_empty_rejected():
 
 
 def test_fixture_passes_validation():
-    validate_ruleset((FIXTURES / "s3_ruleset.nft").read_text())
+    validate_ruleset((FIXTURES / "s3_ruleset.nft").read_text(encoding="utf-8"))
 
 
 def test_header_starts_with_flush_and_defines_topology():

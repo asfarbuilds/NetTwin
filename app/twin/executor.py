@@ -86,7 +86,8 @@ def topology_header(twin: Twin) -> str:
 
 def write_ruleset(twin: Twin, ruleset: str) -> Path:
     path = twin.attempt_dir / "ruleset.nft"
-    path.write_text(topology_header(twin) + ruleset.rstrip("\n") + "\n", newline="\n")  # nft rejects CRLF
+    # UTF-8 + LF regardless of platform: nft rejects CRLF, and comments may contain non-ASCII.
+    path.write_text(topology_header(twin) + ruleset.rstrip("\n") + "\n", encoding="utf-8", newline="\n")
     path.chmod(0o644)
     return path
 

@@ -319,7 +319,7 @@ def twin_up(client: docker.DockerClient, pool: SubnetPool, attempt_id: str, atte
         # Root inside the router has no DAC_READ_SEARCH: the dir must be world-traversable, files readable.
         attempt_dir.chmod(0o755)
         conf = attempt_dir / "dnsmasq.conf"
-        conf.write_text(dnsmasq_conf(twin.addr), newline="\n")  # LF even if run on Windows
+        conf.write_text(dnsmasq_conf(twin.addr), encoding="utf-8", newline="\n")  # LF even if run on Windows
         conf.chmod(0o644)
         _build(client, twin)
         yield twin

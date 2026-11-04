@@ -33,13 +33,12 @@ def no_leftovers(client):
 
 
 def run(client, pool, tmp_path, ruleset_file, plan):
-    return executor.run_attempt(
-        client, pool, tmp_path, secrets.token_hex(4), (FIXTURES / ruleset_file).read_text(), plan, timeout_s=90
-    )
+    ruleset = (FIXTURES / ruleset_file).read_text(encoding="utf-8")
+    return executor.run_attempt(client, pool, tmp_path, secrets.token_hex(4), ruleset, plan, timeout_s=90)
 
 
 def test_s3_reference_ruleset_passes(client, pool, tmp_path):
-    plan = TestPlan.model_validate_json((FIXTURES / "s3_plan.json").read_text())
+    plan = TestPlan.model_validate_json((FIXTURES / "s3_plan.json").read_text(encoding="utf-8"))
     res = run(client, pool, tmp_path, "s3_ruleset.nft", plan)
     failed = [f"{r.id}: expected {r.expect} got {r.actual} {r.detail}" for r in res.probes + res.containment
               if not r.passed]
