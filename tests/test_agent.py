@@ -114,6 +114,18 @@ def test_llm_failure_in_one_attempt_is_recorded_and_retried(tmp_path):
     assert [a.label for a in res.attempts] == ["#1 ✗ LLM error", "#2 ✓"] and res.passed
 
 
+def test_llm_failure_keeps_the_previous_twin_evidence(tmp_path):
+    # #1 lockout on the twin, #2 the LLM fails, #3 must still see #1's violation and ruleset (not start blind)
+    deps, fake = make_deps(tmp_path, [j(S1_PLAN), j(LOCKOUT), "nonsense", "still nonsense", j(FIXED), "sum"],
+                           verdicts=[False, True])
+    run_id, plan = agent.start_run(deps, "x")
+    res = agent.run_loop(deps, run_id, "x", agent.DEFAULT_BASELINE, plan)
+    assert [a.label for a in res.attempts] == ["#1 ✗ INV-1 lockout", "#2 ✗ LLM error", "#3 ✓"]
+    third_gen = fake.sent[4][-1]["content"]
+    assert "INVARIANT VIOLATION INV-1" in third_gen and "YOUR PREVIOUS RULESET" in third_gen
+    assert "Attempt #2 produced no usable ruleset" in third_gen
+
+
 def test_summary_falls_back_if_llm_fails(tmp_path):
     import httpx2
     import openai

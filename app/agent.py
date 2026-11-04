@@ -191,7 +191,12 @@ def run_loop(deps: Deps, run_id: str, request: str, baseline: str, plan: TestPla
         if rec.result and rec.result.passed:
             result.passed = True
             break
-        feedback = feedback_for(rec)
+        if rec.proposal is None and feedback:
+            # The LLM call failed, so nothing new was learned. Keep the last twin evidence and ruleset;
+            # otherwise the next attempt starts blind and repeats the earlier mistake.
+            feedback = f"(Attempt #{n} produced no usable ruleset: {rec.error[:200]})\n" + feedback
+        else:
+            feedback = feedback_for(rec)
 
     final = next((a for a in reversed(result.attempts) if a.result and a.result.passed), None)
     if final:
