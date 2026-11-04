@@ -139,6 +139,9 @@ def bridge_name(attempt_id: str, net: str) -> str:
     return name
 
 
+LOCAL_DNS_NAMES = ("intranet.local", "nvr.local")  # the only names the twin resolver answers (no upstream)
+
+
 def dnsmasq_conf(addr: Addressing) -> str:
     """Local records only, no upstream servers. Written by trusted code from fixed topology data."""
     return "\n".join(
@@ -149,8 +152,7 @@ def dnsmasq_conf(addr: Addressing) -> str:
             "domain-needed",
             "bogus-priv",
             "log-queries",
-            f"address=/intranet.local/{addr.node_ip('nvr')}",
-            f"address=/nvr.local/{addr.node_ip('nvr')}",
+            *(f"address=/{name}/{addr.node_ip('nvr')}" for name in LOCAL_DNS_NAMES),
             "",
         ]
     )

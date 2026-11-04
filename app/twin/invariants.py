@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.schemas import REACH_EXPECT, ROUTER_TARGETS, Probe, ResolvedProbe, TestPlan
-from app.twin.topology import Addressing, resolve
+from app.twin.topology import LOCAL_DNS_NAMES, Addressing, resolve
 
 MAX_SSH_PROBES_PER_SOURCE = 3  # so a correct S2 rate limit ("3/minute", burst 5) can't trip INV-1
 
@@ -59,6 +59,22 @@ def _is_router_ssh(p: Probe) -> bool:
     return p.target in ROUTER_TARGETS and p.service_port == 22
 
 
+PRIVATE_HOSTS = ("admin", "staff", "hr", "nvr")
+
+
+def unverifiable(p: Probe) -> str | None:
+    """Why no ruleset could ever make this probe pass on the twin, or None. Such probes are removed:
+    left in, they fail every attempt and the generator burns its whole output budget trying to fix them."""
+    if p.kind == "dns":
+        if p.expect != "resolves":
+            return f"the twin resolver has no {p.expect} records"
+        if not any(p.query == n or p.query.endswith("." + n) for n in LOCAL_DNS_NAMES):
+            return f"the twin has no internet DNS; only {' and '.join(LOCAL_DNS_NAMES)} resolve"
+    if p.source == "attacker" and p.target in PRIVATE_HOSTS and p.expect == "allow":
+        return "the internet can't route to a private address; test the port forward on router_wan"
+    return None
+
+
 @dataclass
 class PlanCheck:
     kept: list[Probe]
@@ -70,7 +86,8 @@ def check_plan(plan: TestPlan) -> PlanCheck:
     """Pure Python. Runs on the LLM plan and again on the user-edited plan before execution.
 
     1. Drop probes that contradict an invariant (otherwise S1 could never pass) and flag the conflict.
-    2. Cap probes hitting router :22 per source; invariants are counted first.
+    2. Drop probes that can't pass on the twin whatever the ruleset (see unverifiable).
+    3. Cap probes hitting router :22 per source; invariants are counted first.
     """
     check = PlanCheck(kept=[])
     ssh_count: dict[str, int] = {}
@@ -84,6 +101,9 @@ def check_plan(plan: TestPlan) -> PlanCheck:
             check.removed.append((p, f"conflicts with {hit.code}"))
             if hit.code not in check.conflicts:
                 check.conflicts.append(hit.code)
+            continue
+        if why := unverifiable(p):
+            check.removed.append((p, why))
             continue
         if _is_router_ssh(p):
             n = ssh_count.get(p.source, 0)

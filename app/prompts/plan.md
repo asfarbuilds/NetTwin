@@ -21,7 +21,7 @@ Probe format. Every field uses ONLY these values:
   - "icmp": no port. expect "allow" or "deny". One ping.
   - "ssh_banner": no port (always 22). expect "allow" or "deny". allow = an SSH server banner was received.
   - "dns": no port; needs "query" (a hostname); target must be a router interface (it is the resolver).
-    expect "resolves", "sinkholed" or "nxdomain".
+    expect "resolves". Only the local names listed under NETWORK exist on the twin; use one of them.
 - "expect": as above.
 - "description": one short plain-English sentence, max 200 chars, no newlines.
 

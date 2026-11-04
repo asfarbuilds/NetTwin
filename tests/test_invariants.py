@@ -34,6 +34,25 @@ def test_s1_conflicting_probes_removed_and_flagged():
     assert [p.id for p in check.kept] == ["staff-ssh", "wan-ssh", "admin-ping"]
 
 
+def test_probes_that_can_never_pass_on_the_twin_are_removed():
+    # Every S2/S3 bakeoff failure (4 Nov): the planner asked the no-upstream resolver for example.com.
+    plan = TestPlan(probes=[
+        P("dns-public", "staff", "dns", "router_lan", "resolves", query="example.com"),
+        P("dns-local", "staff", "dns", "router_lan", "resolves", query="intranet.local"),
+        P("dns-sub", "hr", "dns", "router_lan", "resolves", query="cam.nvr.local"),
+        P("dns-sink", "staff", "dns", "router_lan", "sinkholed", query="intranet.local"),
+        P("wan-direct-ok", "attacker", "http", "nvr", "allow", port=8443),  # internet -> private IP
+        P("wan-direct-no", "attacker", "http", "nvr", "deny", port=8443),  # a fine negative check
+        P("wan-forward", "attacker", "http", "router_wan", "allow", port=8443),
+    ])
+    check = check_plan(plan)
+    assert [p.id for p in check.kept] == ["dns-local", "dns-sub", "wan-direct-no", "wan-forward"]
+    reasons = dict((p.id, why) for p, why in check.removed)
+    assert "only intranet.local and nvr.local resolve" in reasons["dns-public"]
+    assert "router_wan" in reasons["wan-direct-ok"]
+    assert check.conflicts == []  # unverifiable is not an invariant conflict
+
+
 def test_agreeing_probe_is_not_a_conflict():
     check = check_plan(TestPlan(probes=[P("a", "admin", "ssh_banner", "router_mgmt", "allow")]))
     assert check.conflicts == [] and len(check.kept) == 1

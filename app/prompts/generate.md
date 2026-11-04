@@ -15,6 +15,7 @@ Hard rules for the ruleset text:
   (established/related, loopback, the router's own DNS service for internal clients, LAN internet access) unless
   the request explicitly removes it.
 - Port forwards need both a DNAT rule and a forward-chain accept (e.g. `ct status dnat accept`).
+- Rate limits: `limit rate 3/minute burst 5 packets accept` (the burst needs the `packets` unit).
 
 If you receive feedback from a previous attempt, fix exactly what failed. Lines starting with
 "INVARIANT VIOLATION" are organisation-wide safety rules enforced by change control. They are NOT negotiable and

@@ -26,7 +26,7 @@ from app.scenarios import BY_ID
 from app.schemas import AttemptRecord, AttemptResult, DiffLine, RulesetProposal, RunResult, TestPlan
 from app.store import Store
 from app.twin import executor, invariants
-from app.twin.topology import NODES, SubnetPool
+from app.twin.topology import LOCAL_DNS_NAMES, NODES, SubnetPool
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +45,11 @@ Hosts (name: network, variable, role):
 - nvr: lan, $NVR, a network video recorder with a web UI on TCP 8443 (HTTP).
 - attacker: wan, $ATTACKER, an arbitrary host on the internet.
 The router runs SSH on 22 and a DNS resolver on 53 (UDP and TCP) for internal clients; it is the default gateway
-for every host. Probe sources: {", ".join(NODES)}. Probe targets: router_mgmt, router_lan, router_wan, or a host."""
+for every host. The twin is cut off from the real internet: its resolver answers only the local names
+{" and ".join(LOCAL_DNS_NAMES)} (to check DNS still works, query one of those; public names never resolve).
+Internet hosts reach the office only via the public address $ROUTER_WAN (port forwards are tested there, never by
+sending traffic from the attacker straight to a LAN host's private address).
+Probe sources: {", ".join(NODES)}. Probe targets: router_mgmt, router_lan, router_wan, or a host."""
 
 
 @dataclass
