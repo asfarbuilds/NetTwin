@@ -63,6 +63,12 @@ def test_include_rejected_any_case():
             validate_ruleset(text)
 
 
+@pytest.mark.parametrize("text", ["define NVR = 1.1.1.1", "redefine IF_WAN = lo", "undefine NVR", "  DEFINE X = 1"])
+def test_define_rejected(text):
+    with pytest.raises(RulesetRejected, match="topology variables"):
+        validate_ruleset(f"{text}\ntable inet t {{}}")
+
+
 def test_size_cap():
     with pytest.raises(RulesetRejected, match="KB"):
         validate_ruleset("#" * (MAX_RULESET_BYTES + 1))

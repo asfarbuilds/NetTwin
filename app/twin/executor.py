@@ -45,6 +45,8 @@ class RulesetRejected(ValueError):
 
 
 _INCLUDE = re.compile(r"\binclude\b", re.IGNORECASE)
+# The executor's header defines $IF_LAN, $NVR, ...; a ruleset must not redefine or shadow them.
+_DEFINE = re.compile(r"\b(?:re|un)?define\b", re.IGNORECASE)
 # Control, format (bidi overrides, zero-width), private-use, surrogate, unassigned, line/para separators.
 _BAD_CATEGORIES = {"Cc", "Cf", "Co", "Cs", "Cn", "Zl", "Zp"}
 
@@ -56,6 +58,8 @@ def validate_ruleset(text: str) -> str:
         raise RulesetRejected(f"ruleset larger than {MAX_RULESET_BYTES // 1024} KB")
     if _INCLUDE.search(text):
         raise RulesetRejected("ruleset must not use 'include'")
+    if m := _DEFINE.search(text):
+        raise RulesetRejected(f"ruleset must not use '{m.group(0)}': topology variables are set by NetTwin")
     for i, ch in enumerate(text):
         if ch not in "\n\t" and unicodedata.category(ch) in _BAD_CATEGORIES:
             line = text.count("\n", 0, i) + 1

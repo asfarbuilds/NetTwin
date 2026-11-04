@@ -243,6 +243,7 @@ The pipeline runs these steps in order:
 4. **STATIC VALIDATION.** Reject the ruleset if any of these hold:
    - it is larger than 20 KB
    - it contains the token `include` (case-insensitive)
+   - it contains `define`/`redefine`/`undefine`, because the topology variables belong to the executor and must not be shadowed
    - it contains any character that is non-printable, other than `\n` and `\t` (`\r` is stripped first)
    - The executor always prepends `flush ruleset`.
 5. **EXECUTE** on a fresh twin:

@@ -19,11 +19,15 @@ class Invariant:
     code: str
     probe: Probe
     violation: str  # fed back to the generator on retry
+    preserves: str  # for the UI: "NetTwin preserved <preserves>."
+    short: str  # timeline label, e.g. "#1 ✗ INV-1 lockout"
 
 
 INVARIANTS: tuple[Invariant, ...] = (
     Invariant(
         code="INV-1",
+        preserves="management access",
+        short="lockout",
         probe=Probe(
             id="inv-1",
             source="admin",

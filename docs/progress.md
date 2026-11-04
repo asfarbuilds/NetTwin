@@ -34,8 +34,22 @@ uv run pytest -m vm -v
 docker ps -a --filter label=nettwin=1; docker network ls --filter label=nettwin=1   # both empty
 ```
 
-## Phase 2: Agent loop (next)
-Needs `/etc/nettwin/env` on the VM with the Vultr Inference key and a model ID verified against `/v1/models`.
+## Phase 2: Agent loop, CODE DONE locally (4 Nov); live VM acceptance pending
+- `app/llm.py`: OpenAI SDK → Vultr Inference; `verify_model()` against `/v1/models`; temp 0.2, 60 s timeout,
+  backoff 2/5/10 s on 429/5xx/connection errors; strips `<think>` + code fences; one repair retry; token accounting.
+- `app/prompts/`: plan, generate, repair, summarize (`{{placeholder}}` templates; system/user split by `---USER---`).
+  The generator prompt never names an invariant; it is told only how to treat `INVARIANT VIOLATION` feedback.
+- `app/baselines/default.nft` (topology variables, nft -c OK), `app/scenarios.py` (S1–S3).
+- `app/store.py`: SQLite runs / attempts / probe_results (WAL).
+- `app/agent.py`: start_run (PLAN) → run_loop (checked plan → generate → execute on a fresh twin → retry ≤4)
+  → diff, deterministic conflict message, summary written after the verdict. CLI: `python -m app.agent run S1`.
+- Static validation now also rejects `define`/`redefine`/`undefine`.
+- Conflict message has two honest variants: "Your request conflicted with INV-1 ..." (plan contradicted an invariant)
+  vs "An earlier attempt violated INV-1; NetTwin caught it on the twin ..." (generator mistake caught).
+- Tests: 123 unit tests green (fake OpenAI + scripted executor), incl. the full S1 containment path.
+
+**VM acceptance (to run):** `uv run python -m app.agent models`, then `run S1`, `run S2`, `run S3`.
+Model choice: compare `glm-5.3`, `deepseek-v4.1-flash-1017`, `qwen3.8-27b` with `--model` on S1–S3.
 
 ## Known issues
 - The host nft rule is loaded by hand on the VM and **won't survive a reboot** until the Phase 5 systemd unit exists.

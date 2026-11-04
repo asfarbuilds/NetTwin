@@ -128,6 +128,16 @@ class ProbeResult(BaseModel):
     description: str = ""
 
 
+class RulesetProposal(BaseModel):
+    """The generator's reply. The ruleset is untrusted DATA: it is only ever validated, written to a file
+    and loaded by nft inside the twin router."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ruleset: Annotated[str, StringConstraints(min_length=1, max_length=40_000)]
+    rationale: Annotated[str, StringConstraints(max_length=2_000)] = ""
+
+
 class AttemptResult(BaseModel):
     attempt_id: str
     stage_failed: Literal["static", "nft_check", "nft_load", "twin", None] = None
@@ -138,3 +148,34 @@ class AttemptResult(BaseModel):
     failures: list[str] = []  # human/LLM-readable feedback lines
     duration_s: float = 0.0
     teardown_clean: bool = False
+
+
+class DiffLine(BaseModel):
+    op: Literal["+", "-", " ", "@"]
+    text: str
+
+
+class AttemptRecord(BaseModel):
+    n: int
+    proposal: RulesetProposal | None = None  # None if generation itself failed
+    result: AttemptResult | None = None
+    error: str = ""  # LLM failure for this attempt
+    label: str = ""  # timeline label, e.g. "#1 ✗ INV-1 lockout"
+
+
+class RunResult(BaseModel):
+    run_id: str
+    request: str
+    model: str
+    plan: TestPlan
+    removed_from_plan: list[tuple[str, str]] = []  # (probe id, reason)
+    conflicts: list[str] = []  # invariants the REQUEST/plan contradicted (detected before any twin ran)
+    caught_invariants: list[str] = []  # invariants an attempt violated on the twin and a later attempt restored
+    conflict_message: str = ""
+    attempts: list[AttemptRecord] = []
+    passed: bool = False
+    final_ruleset: str = ""
+    rationale: str = ""
+    diff: list[DiffLine] = []
+    summary: str = ""
+    llm_usage: dict = {}

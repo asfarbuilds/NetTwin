@@ -1,0 +1,26 @@
+# Default SOHO baseline: a realistic, permissive office router as it runs in production today.
+# Written with NetTwin topology variables ($IF_LAN, $NVR, ...); the executor defines them per twin.
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        ct state established,related accept
+        ct state invalid drop
+        iif lo accept
+        iifname $IF_MGMT accept
+        iifname $IF_LAN accept
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ct state established,related accept
+        ct state invalid drop
+        iifname $IF_LAN oifname $IF_WAN accept
+    }
+}
+
+table ip nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname $IF_WAN masquerade
+    }
+}
