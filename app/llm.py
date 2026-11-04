@@ -170,8 +170,12 @@ class LLM:
                         continue
                     if delta.content:
                         parts.append(delta.content)
-                    # some servers stream the model's thinking in a separate field; it only counts as progress
-                    reasoning_chars += len(getattr(delta, "reasoning_content", None) or "")
+                    # some servers stream the model's thinking in a separate field ("reasoning_content", or
+                    # "reasoning" in newer vLLM); it only counts as progress, never as the answer
+                    thought = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
+                    if not thought and (extra := getattr(delta, "model_extra", None)):
+                        thought = extra.get("reasoning") or extra.get("reasoning_content")
+                    reasoning_chars += len(thought or "")
         finally:
             if close := getattr(stream, "close", None):
                 close()
