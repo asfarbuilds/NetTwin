@@ -128,9 +128,14 @@ def conflict_message(conflicts: list[str], caught: list[str]) -> str:
     return ""
 
 
+def _config_lines(text: str) -> list[str]:
+    """Lines that carry configuration: comment-only lines would otherwise show up as changes."""
+    return [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+
+
 def unified_diff(baseline: str, final: str) -> list[DiffLine]:
     out = []
-    for line in difflib.unified_diff(baseline.splitlines(), final.splitlines(), "baseline.nft", "proposed.nft",
+    for line in difflib.unified_diff(_config_lines(baseline), _config_lines(final), "baseline.nft", "proposed.nft",
                                      lineterm=""):
         if line.startswith(("---", "+++")):
             continue

@@ -48,7 +48,16 @@ docker ps -a --filter label=nettwin=1; docker network ls --filter label=nettwin=
   vs "An earlier attempt violated INV-1; NetTwin caught it on the twin ..." (generator mistake caught).
 - Tests: 123 unit tests green (fake OpenAI + scripted executor), incl. the full S1 containment path.
 
-**VM acceptance (to run):** `uv run python -m app.agent models`, then `run S1`, `run S2`, `run S3`.
+**Live S1 on the VM, PASSED 4 Nov (glm-5.3, run 322a59380764):**
+- Plan: 17 probes; `mgmt-ssh-blocked` removed as "conflicts with INV-1".
+- Timeline `#1 ✗ INV-1 lockout → #2 ✓`; final ruleset keeps exactly
+  `iifname $IF_MGMT ip saddr $ADMIN ip daddr $ROUTER_MGMT tcp dport 22 accept`. 22/22 probes + CC-1..3 pass.
+- Conflict message shown; summary accurate.
+- **Too slow:** plan 91.5 s, generate#1 128.1 s, generate#2 43.0 s, summary 5.8 s (43k output tokens, mostly
+  hidden reasoning). About 5 min per run. Model comparison needed.
+- Fixed after the run: the diff ignores comment-only lines (baseline header comments showed as removals).
+
+**Still to run:** S2, S3, and the model comparison.
 Model choice: compare `glm-5.3`, `deepseek-v4.1-flash-1017`, `qwen3.8-27b` with `--model` on S1–S3.
 
 ## Known issues

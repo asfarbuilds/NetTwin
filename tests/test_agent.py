@@ -126,6 +126,13 @@ def test_summary_falls_back_if_llm_fails(tmp_path):
     assert res.passed and res.summary.startswith("PASSED") and "#1 ✓" in res.summary
 
 
+def test_diff_ignores_comment_only_lines():
+    base = "# header comment\ntable inet filter {\n  iifname $IF_LAN accept\n}\n"
+    final = "table inet filter {\n  # new comment\n  iifname $IF_MGMT accept\n}\n"
+    ops = [(d.op, d.text.strip()) for d in agent.unified_diff(base, final) if d.op in "+-"]
+    assert ops == [("-", "iifname $IF_LAN accept"), ("+", "iifname $IF_MGMT accept")]
+
+
 def test_plan_failure_marks_run_error(tmp_path):
     import pytest
 
