@@ -223,6 +223,11 @@ The pipeline runs these steps in order:
      opposite expectation. Conflicting probes are **removed from the executable plan**, shown struck-through in
      the UI with "conflicts with INV-1", and the run is flagged `conflicts=["INV-1"]`.
      Without this, S1 can never pass, because the plan would demand exactly what INV-1 forbids.
+   - **Unverifiable probes (added 4 Nov after the model comparison):** probes that no ruleset can make pass on the twin are
+     removed with a reason: DNS `resolves` for names the twin resolver doesn't serve (only `intranet.local`, `nvr.local`;
+     there is no upstream), DNS `sinkholed`/`nxdomain` (no such records until S4), and attacker → private host `allow`
+     (port forwards are tested on `router_wan`). In the comparison every S2/S3 failure was a planner probe for
+     `example.com`; the generator then reasoned until the 32k output cut-off trying to fix it.
 2. **REVIEW.** The UI shows the plan. LLM-written probes are editable and deletable.
    Invariants are shown with a lock icon and cannot be edited. CLI/API mode auto-approves the plan.
    The conflict check runs again on the user-edited plan before execution.

@@ -57,8 +57,26 @@ docker ps -a --filter label=nettwin=1; docker network ls --filter label=nettwin=
   hidden reasoning). About 5 min per run. Model comparison needed.
 - Fixed after the run: the diff ignores comment-only lines (baseline header comments showed as removals).
 
-**Still to run:** S2, S3, and the model comparison.
-Model choice: compare `glm-5.3`, `deepseek-v4.1-flash-1017`, `qwen3.8-27b` with `--model` on S1–S3.
+**Model comparison #1 (4 Nov, VM, S1–S3 × 4 models).** Only S1 and one S3 passed:
+
+| Model | S1 | S2 | S3 |
+|---|---|---|---|
+| glm-5.3-flash | ✓ (2 attempts) | ✗ | ✗ |
+| deepseek-v4.1-flash-1017 | ✓ (4 attempts) | ✗ | ✗ |
+| qwen3.8-27b | ✗ | ✗ | ✓ (1 attempt) |
+| glm-5.3 | ✓ | planning > 180 s | planning > 180 s |
+
+Root causes, all fixed in code, not model problems:
+1. **Impossible plan probes**: every S2/S3 failure was the planner asking the no-upstream twin resolver for
+   `example.com` (REFUSED). Plan check now removes unverifiable probes (CLAUDE.md §6 step 1); planner told the local names.
+2. **Runaway reasoning on an impossible fix**: the generator then hit the 32,768-token output limit ("no JSON object"),
+   about 80 s per call, repair included. Cut-off replies are no longer repaired.
+3. **Lost feedback after an LLM error**: the attempt after a failed generate call started blind and repeated the
+   earlier failure. Now the last twin evidence is carried forward.
+4. qwen wrote `burst 3 accept` (nft needs `burst 3 packets`); hint added to the generate prompt.
+
+glm-5.3 is too slow for a live demo. **Next:** re-run the comparison on the fixed code, then pick the model.
+`scripts/show_run.py <run_id>` prints failing probes, raw output and rulesets from SQLite.
 
 ## Phase 3: Web app, CODE DONE locally (4 Nov); VM browser acceptance pending
 - `app/main.py`: FastAPI routes per CLAUDE.md §10. Workers run in threads. A semaphore caps concurrent runs (2),
