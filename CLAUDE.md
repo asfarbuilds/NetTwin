@@ -143,7 +143,8 @@ Fail loudly on overlap.
 **Docker gotcha:** Docker gives the gateway address (`.1`) to the host bridge.
 That's why the router uses `.254`, and why the host must be firewalled from the twins (§9).
 
-**Docker gotcha 2 (verify in spike):** for `internal=True` networks Docker installs isolation rules that drop
+**Docker gotcha 2 (spike 4 Nov: not hit, because `br_netfilter` is not loaded on the VM; the control plane refuses to
+start if `net.bridge.bridge-nf-call-iptables=1`):** for `internal=True` networks Docker installs isolation rules that drop
 traffic whose destination is outside that bridge's subnet. With `br_netfilter` loaded, this can also drop
 lan→wan packets that are being *bridged* to the router container's MAC, which breaks routing through the twin router.
 If the spike shows this, the fallback is: non-internal bridge networks with
@@ -199,7 +200,7 @@ Report to Ali before switching.
 **Node routing:**
 - Nodes need their default route via the router `.254`, not the Docker bridge `.1`.
 - Spike option (a): a one-time `exec_run(["ip","route","replace","default","via",ROUTER_IP], privileged=True)`
-  at setup, before any model output exists.
+  at setup, before any model output exists. **Chosen: verified on the VM 4 Nov. Nodes keep zero caps.**
 - Fallback (b): `cap_add=["NET_ADMIN"]` on nodes. This is acceptable because nodes never run model output;
   document it in the README if used.
 - Set each node's `dns=[router_ip_on_that_net]`.

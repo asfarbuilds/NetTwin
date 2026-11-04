@@ -247,9 +247,11 @@ echo "$out" | grep -q "$NVR" && pass "admin resolves via router_mgmt too" || fai
 
 # ---------------------------------------------------------------------------------------------------
 hdr "7. SSH banner probe"
-b=$(dx admin nc -w 3 "$R_M" 22 2>/dev/null </dev/null | head -c 64)
-[[ $b == SSH-* ]] && pass "admin -> router_mgmt:22 banner: $(echo "$b" | tr -d '\r\n')" || fail "admin banner got: '$b'"
-b=$(dx staff nc -w 3 "$R_L" 22 2>/dev/null </dev/null | head -c 64)
+# First line only: dropbear sends its KEX init (binary) right after the banner line.
+banner() { dx "$1" nc -w 3 "$2" 22 2>/dev/null </dev/null | head -n 1 | tr -cd '[:print:]'; }
+b=$(banner admin "$R_M")
+[[ $b == SSH-* ]] && pass "admin -> router_mgmt:22 banner: $b" || fail "admin banner got: '$b'"
+b=$(banner staff "$R_L")
 [[ $b == SSH-* ]] && fail "staff got an SSH banner; the ruleset should drop it" || pass "staff -> router_lan:22 no banner (ruleset enforced)"
 note "nc in node image: $(dx admin sh -c 'readlink -f "$(command -v nc)"; nc -h 2>&1 | head -1' | xargs)"
 
