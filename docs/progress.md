@@ -115,7 +115,10 @@ Model `deepseek-v4.1-flash-1017`. Each scenario was planned, run on the twin, ap
 **VM acceptance (to run):** `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`, then an SSH tunnel
 (`ssh -L 8000:127.0.0.1:8000 ali@<vm>`), then run S1–S3 in the browser, edit a plan, approve, download.
 
-## Phase 5: Deploy, LIVE (7 Nov 2026); reboot test pending
+## Phase 5: Deploy, DONE (7 Nov 2026, survives a reboot)
+- After `sudo reboot`: S1 run `47889b300fcd` on the public URL PASSED with `#1 ✗ INV-1 lockout → #2 ✗ LLM error →
+  #3 ✓`. CC-2 was green on every attempt, so the host rule came back via `nettwin-host.service`. #2 was a 32k
+  output-token cut-off; the carried-forward feedback let #3 pass.
 - `deploy/install.sh <domain>`: Caddy (Ubuntu package 2.6.2), `nettwin.service` (uvicorn on 127.0.0.1:8000 with
   `--proxy-headers`), `nettwin-host.service` (persistent host rule, re-applied when Docker restarts), ufw 80/443.
 - Live at **https://104.156.226.100.sslip.io**. Checked from outside: HTTPS 200 with a valid certificate,
