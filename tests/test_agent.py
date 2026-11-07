@@ -126,6 +126,26 @@ def test_llm_failure_keeps_the_previous_twin_evidence(tmp_path):
     assert "Attempt #2 produced no usable ruleset" in third_gen
 
 
+def test_cut_off_plan_is_asked_once_more(tmp_path):
+    from tests.fake_llm import CUT_OFF
+
+    deps, fake = make_deps(tmp_path, [CUT_OFF, j(S1_PLAN)], verdicts=[])
+    _run_id, plan = agent.start_run(deps, "x")
+    assert len(plan.probes) == 3 and len(fake.sent) == 2
+
+
+def test_plan_cut_off_twice_marks_run_error(tmp_path):
+    import pytest
+
+    from app.llm import LLMError
+    from tests.fake_llm import CUT_OFF
+
+    deps, fake = make_deps(tmp_path, [CUT_OFF, CUT_OFF], verdicts=[])
+    with pytest.raises(LLMError, match="output-token limit"):
+        agent.start_run(deps, "x", run_id="abcdefabcdef")
+    assert len(fake.sent) == 2 and deps.store.get_status("abcdefabcdef") == "error"
+
+
 def test_summary_falls_back_if_llm_fails(tmp_path):
     import httpx2
     import openai

@@ -69,8 +69,18 @@ def _no_emit(_e: str, _d: dict) -> None:
 # ---------------------------------------------------------------- steps
 
 def make_plan(llm: LLM, request: str, baseline: str) -> TestPlan:
-    plan, _raw = llm.json_call("plan", TestPlan, label="plan", request=request, topology=TOPOLOGY, baseline=baseline)
-    return plan
+    """A failed plan ends the run (unlike a failed generate, which the loop retries), so a reply cut off at the
+    output-token limit gets one fresh try: reasoning length varies a lot between samples of the same prompt."""
+    for attempt in (1, 2):
+        try:
+            plan, _raw = llm.json_call("plan", TestPlan, label="plan", request=request, topology=TOPOLOGY,
+                                       baseline=baseline)
+            return plan
+        except LLMError:
+            if attempt == 2 or llm.last_finish != "length":
+                raise
+            log.warning("plan reply cut off at the output-token limit; asking once more")
+    raise AssertionError("unreachable")
 
 
 def generate(llm: LLM, request: str, baseline: str, plan: TestPlan, feedback: str, n: int) -> RulesetProposal:
