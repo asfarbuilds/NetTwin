@@ -1,0 +1,17 @@
+# NetTwin public entry point. install.sh replaces @DOMAIN@ (e.g. 203-0-113-7.sslip.io) and copies this to
+# /etc/caddy/Caddyfile. Caddy gets the TLS certificate automatically and sets X-Forwarded-For, which uvicorn
+# trusts from 127.0.0.1 only (--proxy-headers --forwarded-allow-ips=127.0.0.1) so the rate limit sees real IPs.
+@DOMAIN@ {
+	reverse_proxy 127.0.0.1:8000 {
+		# Server-Sent Events: pass every event through immediately, never buffer.
+		flush_interval -1
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+	log {
+		output stdout
+	}
+}

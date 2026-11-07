@@ -1,0 +1,21 @@
+# NetTwin control plane. install.sh replaces @USER@ and @HOME@ and copies this to /etc/systemd/system/.
+# The API key comes from /etc/nettwin/env (chmod 600, owned by @USER@); it is never in this file.
+[Unit]
+Description=NetTwin control plane (FastAPI on 127.0.0.1:8000)
+Requires=docker.service
+After=network-online.target docker.service nettwin-host.service
+Wants=network-online.target nettwin-host.service
+
+[Service]
+User=@USER@
+Group=@USER@
+WorkingDirectory=@HOME@/nettwin
+EnvironmentFile=/etc/nettwin/env
+ExecStart=@HOME@/.local/bin/uv run --no-dev uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

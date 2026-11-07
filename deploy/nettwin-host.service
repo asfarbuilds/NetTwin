@@ -1,0 +1,15 @@
+# Loads the host isolation rule (twins can't reach the host) at boot and again whenever Docker restarts.
+# The rule file is copied to /etc/nettwin/host.nft (root-owned) by install.sh. It only touches its own table.
+[Unit]
+Description=NetTwin host isolation nftables rule
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nettwin/host.nft
+ExecStop=/usr/sbin/nft delete table inet nettwin_host
+
+[Install]
+WantedBy=multi-user.target docker.service
