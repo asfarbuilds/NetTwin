@@ -115,6 +115,18 @@ Model `deepseek-v4.1-flash-1017`. Each scenario was planned, run on the twin, ap
 **VM acceptance (to run):** `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`, then an SSH tunnel
 (`ssh -L 8000:127.0.0.1:8000 ali@<vm>`), then run S1–S3 in the browser, edit a plan, approve, download.
 
+## Phase 5: Deploy, LIVE (7 Nov 2026); reboot test pending
+- `deploy/install.sh <domain>`: Caddy (Ubuntu package 2.6.2), `nettwin.service` (uvicorn on 127.0.0.1:8000 with
+  `--proxy-headers`), `nettwin-host.service` (persistent host rule, re-applied when Docker restarts), ufw 80/443.
+- Live at **https://104.156.226.100.sslip.io**. Checked from outside: HTTPS 200 with a valid certificate,
+  HTTP→HTTPS 308, SSE unbuffered through Caddy, port 8000 closed, health OK.
+- Note: `uv sync --no-dev` removes pytest/ruff from the VM venv; `uv run pytest` reinstalls them.
+
+## Phase 6: Docs, DRAFTED (7 Nov 2026)
+- README (problem, scenarios with real results, Vultr services, model comparison, containment table, agent loop,
+  limitations, business value, setup) and `docs/architecture.md` (3 Mermaid diagrams).
+- Still to add: demo video link, `docs/screenshot.png`.
+
 ## Known issues
 - The host nft rule is loaded by hand on the VM and **won't survive a reboot** until the Phase 5 systemd unit exists.
   After a reboot: `sudo nft -f deploy/nettwin-host.nft` (otherwise CC-2 fails, correctly).
