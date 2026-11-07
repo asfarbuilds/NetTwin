@@ -93,7 +93,13 @@ rate-limited (deny)" probe. The planner is now told not to probe rate limits (pa
 **Phase 2 acceptance: met** (S1–S3 end-to-end via the CLI, INV-1 fires and recovers on S1, all attempts in SQLite).
 `scripts/show_run.py <run_id>` prints failing probes, raw output and rulesets from SQLite.
 
-## Phase 3: Web app, CODE DONE locally (4 Nov); VM browser acceptance pending
+## Phase 3: Web app, DONE (7 Nov 2026, accepted in the browser on the VM via SSH tunnel)
+Model `deepseek-v4.1-flash-1017`. Each scenario was planned, run on the twin, approved, and its downloads unlocked:
+- S1 `5d5764ad2e16`: `#1 ✗ INV-1 lockout → #2 ✓`, conflict message shown, 20/20 checks (the struck-out probe was deleted by hand).
+- S2 `f217da9bb8ac`: `#1 ✓` (8.7 s on the twin), `limit rate 3/minute burst 5 packets` + `tcp dport 22 drop`, no false conflict.
+- S3 `cf72af8d7a86`: `#1 ✓` (11.1 s), DNAT router_wan:8443 → nvr plus `ct status dnat accept`; all other WAN ports denied.
+- Found live: a plan reply cut off at the 32k output limit (S3 `b88568000db5`) ended the whole run. The plan is now retried once on a cut-off.
+
 - `app/main.py`: FastAPI routes per CLAUDE.md §10. Workers run in threads. A semaphore caps concurrent runs (2),
   there's a per-IP rate limit (6/h), and Execute is an atomic compare-and-set (no double runs). The SSE event bus
   supports Last-Event-ID resume and 15 s keepalive pings.
